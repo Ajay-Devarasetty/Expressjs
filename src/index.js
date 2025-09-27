@@ -1,9 +1,13 @@
 const express = require("express");
-const { query ,body, validationResult } = require("express-validator");
+const { query ,body, validationResult, matchedData, checkSchema } = require("express-validator");
+const { createUserValidationSchema } = require("./utils/validationSchemas");
+const usersRouter = require('./routes/users');
 
 const app = express();
 
 app.use(express.json())
+app.use(usersRouter);
+
 const PORT = process.env.PORT || 3000
 
 const userData=[
@@ -26,28 +30,14 @@ app.get('/',(req,res)=>{
     res.send({ msg : "hello world" });
 })
 
-app.get('/api/users', 
-    query('filter')
-    .isString().withMessage("it should be a string")
-    .notEmpty().withMessage("it shouldn't be empty")
-    .isLength({min:3, max:20}).withMessage('must be atleast 3 to 20 char') ,(req,res)=>{
+app.post('/api/users',checkSchema(createUserValidationSchema),(req,res) => {
     const result = validationResult(req);
-    console.log(result);
-    const {query:{filter,value}}=req;
-    if(filter && value){
-        res.send(userData.filter((user)=>user[filter].includes(value)))
-    }
-    res.send(userData)
-})
 
-app.post('/api/users',
-    body('user').
-    notEmpty().withMessage("user name not be empty").
-    isLength({min:3, max:20}).withMessage('must be between 3 and 20 characters')
-    , (req,res)=>{
-    const result = validationResult(req);
-    const {body} = req;
-    const newUser = { id : userData[userData.length - 1].id +1 , ...body };
+    if(!result.isEmpty())
+        return res.status(400).send({ errors : result.array()})
+
+    const data = matchedData(req);
+    const newUser = { id : userData[userData.length - 1].id +1 , ...data };
     userData.push(newUser);
     return res.status(201).send(newUser);
 })
